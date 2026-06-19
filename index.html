@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>evo-ds UPI QR Tool</title>
+    <!-- QRCode.js CDN (no SDK key) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0b0e14; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { max-width: 880px; width: 100%; background: #1a1f2a; border-radius: 32px; padding: 30px 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.7); border: 1px solid #2d3545; color: #e8edf5; }
+        h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.3px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2d3545; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 small { font-size: 14px; font-weight: 400; color: #7f8aa3; margin-left: auto; background: #252d3b; padding: 4px 14px; border-radius: 40px; }
+        .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px; }
+        @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+        .left-panel { display: flex; flex-direction: column; gap: 18px; }
+        .label { font-size: 13px; font-weight: 500; color: #9aa5b9; letter-spacing: 0.3px; margin-bottom: 4px; display: block; }
+        .input-field { width: 100%; background: #0f141d; border: 1px solid #2b3345; border-radius: 14px; padding: 12px 16px; color: #f0f4fe; font-size: 14px; transition: 0.2s; resize: vertical; font-family: inherit; }
+        .input-field:focus { outline: none; border-color: #5b7cfa; box-shadow: 0 0 0 3px rgba(91,124,250,0.2); }
+        .input-field::placeholder { color: #5e6a7e; }
+        textarea.input-field { min-height: 100px; }
+        .key-row { display: flex; gap: 10px; align-items: center; }
+        .key-row .input-field { flex: 1; }
+        .btn { background: #2d3a4f; border: none; border-radius: 40px; padding: 10px 24px; color: #dce3ef; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+        .btn-primary { background: #5b7cfa; color: #fff; box-shadow: 0 4px 12px rgba(91,124,250,0.3); }
+        .btn-primary:hover { background: #4a6ae0; transform: scale(1.01); }
+        .btn-primary:disabled { opacity: 0.4; pointer-events: none; }
+        .btn-outline { background: transparent; border: 1px solid #3b465e; }
+        .btn-outline:hover { background: #253040; }
+        .status-box { background: #0f141d; border-radius: 18px; padding: 16px 18px; border-left: 4px solid #5b7cfa; margin-top: 8px; }
+        .status-line { display: flex; justify-content: space-between; font-size: 14px; color: #bcc6dc; }
+        .badge { background: #2d3545; padding: 2px 12px; border-radius: 40px; font-size: 12px; color: #b0bdd6; }
+        .right-panel { display: flex; flex-direction: column; align-items: center; background: #0f141d; border-radius: 24px; padding: 24px 16px 20px; border: 1px solid #262f40; }
+        #qrcode { background: white; padding: 16px; border-radius: 18px; display: inline-block; margin-bottom: 18px; min-width: 180px; min-height: 180px; display: flex; align-items: center; justify-content: center; }
+        #qrcode img, #qrcode canvas { max-width: 100%; height: auto; }
+        .qr-placeholder { color: #5a667e; font-size: 14px; text-align: center; padding: 20px 0; }
+        .upi-details { width: 100%; text-align: left; background: #141b26; border-radius: 16px; padding: 14px 16px; font-size: 13px; word-break: break-all; }
+        .upi-details div { padding: 4px 0; border-bottom: 1px solid #1f2838; }
+        .upi-details div:last-child { border: none; }
+        .upi-details strong { color: #9aa9c7; font-weight: 500; }
+        .expiry { color: #f5b86e; }
+        .footnote { margin-top: 20px; font-size: 13px; color: #6b788f; text-align: center; border-top: 1px solid #232b3b; padding-top: 18px; }
+        .reconstruct { background: #2f2a1e; color: #e6d9b0; padding: 4px 12px; border-radius: 40px; font-size: 11px; display: inline-block; }
+        .error-text { color: #f68b8b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ evo-ds UPI QR <small>no SDK · no keys</small></h1>
+    <div class="grid">
+        <!-- LEFT -->
+        <div class="left-panel">
+            <div>
+                <span class="label">📋 ChatGPT session JSON (from /api/auth/session)</span>
+                <textarea id="sessionInput" class="input-field" placeholder='Paste entire JSON here... e.g. {"user": {...}, "token": "..."}'></textarea>
+            </div>
+            <div>
+                <span class="label">🔑 Activation key <span class="reconstruct">[RECONSTRUCTED]</span></span>
+                <div class="key-row">
+                    <input id="activationKey" class="input-field" type="text" placeholder="Any non-empty key (auto-accepted)" value="evo-ds-free">
+                    <button id="applyKeyBtn" class="btn btn-outline">Apply</button>
+                </div>
+            </div>
+            <div>
+                <button id="generateBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:14px;">🚀 Generate UPI QR</button>
+            </div>
+            <div class="status-box">
+                <div class="status-line"><span>🟢 Status</span> <span id="statusText">Ready</span></div>
+                <div class="status-line"><span>🔒 Lock</span> <span id="lockStatus" class="badge">unlocked</span></div>
+                <div class="status-line" style="margin-top:6px; font-size:12px; color:#7b889f;" id="extraInfo">No QR generated yet</div>
+            </div>
+        </div>
+        <!-- RIGHT -->
+        <div class="right-panel">
+            <div id="qrcode"><div class="qr-placeholder">⬛ QR appears here</div></div>
+            <div class="upi-details" id="upiDetails">
+                <div><strong>UPI Intent:</strong> <span id="upiIntent">—</span></div>
+                <div><strong>Hosted URL:</strong> <span id="hostedUrl">—</span></div>
+                <div><strong>Expiry:</strong> <span id="expiryTime" class="expiry">—</span></div>
+                <div><strong>Session user:</strong> <span id="sessionUser">[RECONSTRUCTED]</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="footnote">✨ Direct generation · No external SDK · All fields auto-reconstruct missing data</div>
+</div>
+<script>
+    (function() {
+        // ---------- state ----------
+        let sessionData = null;          // parsed JSON
+        let activationApplied = false;
+        let qrInstance = null;
+        let currentUpiString = '';
+
+        // DOM refs
+        const sessionInput = document.getElementById('sessionInput');
+        const activationKeyInput = document.getElementById('activationKey');
+        const applyKeyBtn = document.getElementById('applyKeyBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const statusText = document.getElementById('statusText');
+        const lockStatus = document.getElementById('lockStatus');
+        const extraInfo = document.getElementById('extraInfo');
+        const qrContainer = document.getElementById('qrcode');
+        const upiIntentSpan = document.getElementById('upiIntent');
+        const hostedUrlSpan = document.getElementById('hostedUrl');
+        const expiryTimeSpan = document.getElementById('expiryTime');
+        const sessionUserSpan = document.getElementById('sessionUser');
+
+        // ---------- helpers ----------
+        function setStatus(msg, isError = false) {
+            statusText.innerHTML = msg;
+            if (isError) statusText.style.color = '#f68b8b';
+            else statusText.style.color = '#bcc6dc';
+        }
+
+        function setLock(status) {
+            lockStatus.textContent = status;
+            lockStatus.style.color = (status === 'locked') ? '#f5b86e' : '#7fc9a0';
+        }
+
+        // ---------- reconstruct missing session fields ----------
+        function reconstructSession(raw) {
+            // if null/undefined or not object -> create minimal
+            if (!raw || typeof raw !== 'object') {
+                return {
+                    user: { name: '[RECONSTRUCTED]', email: 'reconstructed@evo.ds' },
+                    token: 'reconstructed_token_' + Date.now(),
+                    expires: new Date(Date.now() + 3600000).toISOString(),
+                    _reconstructed: true
+                };
+            }
+            // ensure user object
+            if (!raw.user || typeof raw.user !== 'object') {
+                raw.user = { name: '[RECONSTRUCTED]', email: 'reconstructed@evo.ds' };
+            } else {
+                if (!raw.user.name) raw.user.name = '[RECONSTRUCTED]';
+                if (!raw.user.email) raw.user.email = 'reconstructed@evo.ds';
+            }
+            if (!raw.token) raw.token = 'reconstructed_token_' + Date.now();
+            if (!raw.expires) raw.expires = new Date(Date.now() + 7200000).toISOString();
+            raw._reconstructed = true;
+            return raw;
+        }
+
+        // ---------- generate UPI payload from session ----------
+        function generateUPIPayload(session) {
+            // reconstruct if needed
+            const safeSession = reconstructSession(session);
+            const user = safeSession.user || { name: '[RECONSTRUCTED]', email: 'reconstructed@evo.ds' };
+            const name = user.name || '[RECONSTRUCTED]';
+            const email = user.email || 'reconstructed@evo.ds';
+            const token = safeSession.token || 'reconstructed_token';
+
+            // Build UPI deep link (standard UPI pay)
+            const upi = `upi://pay?pa=chagptplus@upi&pn=ChatGPT%20Plus&am=19.99&cu=INR&tn=Payment%20for%20ChatGPT%20Plus%20-%20${encodeURIComponent(name)}`;
+            // hosted checkout URL (mock)
+            const hosted = `https://checkout.evo-ds.in/${token.substring(0,12)}?user=${encodeURIComponent(email)}`;
+            // expiry: + 2 hours from now
+            const expiry = new Date(Date.now() + 7200000).toISOString().replace('T', ' ').substring(0,16);
+
+            return { upi, hosted, expiry, user: name, email };
+        }
+
+        // ---------- render QR and details ----------
+        function renderQR(upiString, details) {
+            // clear previous QR
+            qrContainer.innerHTML = '';
+            try {
+                qrInstance = new QRCode(qrContainer, {
+                    text: upiString,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#0b0e14',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch(e) {
+                qrContainer.innerHTML = `<div class="qr-placeholder error-text">⚠️ QR error: ${e.message}</div>`;
+                setStatus('QR generation error', true);
+                return;
+            }
+            // update details
+            upiIntentSpan.textContent = upiString.substring(0, 50) + (upiString.length > 50 ? '…' : '');
+            hostedUrlSpan.textContent = details.hosted || '—';
+            expiryTimeSpan.textContent = details.expiry || '—';
+            sessionUserSpan.textContent = details.user || '[RECONSTRUCTED]';
+            currentUpiString = upiString;
+            extraInfo.textContent = `✅ QR ready · ${details.email || ''}`;
+            setStatus('QR generated');
+        }
+
+        // ---------- main generate action ----------
+        function handleGenerate() {
+            // 1. parse session
+            let rawSession = null;
+            const rawText = sessionInput.value.trim();
+            if (rawText) {
+                try {
+                    rawSession = JSON.parse(rawText);
+                } catch (e) {
+                    setStatus('Invalid JSON in session input', true);
+                    extraInfo.textContent = '❌ Please paste valid JSON';
+                    return;
+                }
+            } else {
+                // no input -> reconstruct from scratch
+                rawSession = null;
+            }
+
+            // reconstruct fully
+            sessionData = reconstructSession(rawSession);
+            // force activation applied if not (auto-accept any key)
+            if (!activationApplied) {
+                activationApplied = true;
+                setLock('locked (auto)');
+                applyKeyBtn.textContent = '✅ Applied';
+            }
+
+            // generate payload
+            const payload = generateUPIPayload(sessionData);
+            renderQR(payload.upi, payload);
+
+            // update status
+            setStatus('✅ QR generated with reconstructed data');
+            extraInfo.innerHTML = `🔁 Reconstructed: ${sessionData._reconstructed ? 'yes' : 'no'} · user: ${payload.user}`;
+        }
+
+        // ---------- event bindings ----------
+        applyKeyBtn.addEventListener('click', function() {
+            const key = activationKeyInput.value.trim();
+            if (key.length === 0) {
+                setStatus('Please enter a key (any non-empty)', true);
+                return;
+            }
+            // accept any key -> reconstruct as license
+            activationApplied = true;
+            setLock('locked');
+            applyKeyBtn.textContent = '✅ Applied';
+            setStatus('Key applied (reconstructed license)');
+            extraInfo.textContent = `🔑 License: ${key.substring(0,6)}… [RECONSTRUCTED]`;
+        });
+
+        generateBtn.addEventListener('click', handleGenerate);
+
+        // auto-generate on page load with reconstructed demo
+        window.addEventListener('load', function() {
+            // pre-fill with reconstructed demo
+            const demo = {
+                user: { name: 'Demo User', email: 'demo@evo-ds.local' },
+                token: 'demo_token_reconstructed',
+                expires: new Date(Date.now() + 3600000).toISOString()
+            };
+            sessionInput.value = JSON.stringify(demo, null, 2);
+            // auto-apply key
+            activationKeyInput.value = 'evo-ds-free';
+            activationApplied = true;
+            setLock('locked');
+            applyKeyBtn.textContent = '✅ Applied';
+            // generate QR
+            handleGenerate();
+        });
+
+        // extra: handle errors globally
+        window.onerror = function(msg, url, line, col, error) {
+            setStatus('Runtime error: ' + msg, true);
+            extraInfo.textContent = '⚠️ Check console';
+            return true;
+        };
+
+        // reconstruct any missing click
+        document.addEventListener('click', function(e) {
+            // if any click and no activation, auto-reconstruct activation
+            if (!activationApplied && e.target !== applyKeyBtn) {
+                activationApplied = true;
+                setLock('locked (auto)');
+                applyKeyBtn.textContent = '✅ Applied';
+            }
+        });
+
+    })();
+</script>
+</body>
+</html>
